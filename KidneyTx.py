@@ -49,6 +49,16 @@ evidence_db = {
         "DE": {"Aussage": "Früherkennung von Abstoßung durch dd-cfDNA.", "Evidenz": "Level 2b"},
         "EN": {"Aussage": "Early detection of rejection via dd-cfDNA.", "Evidenz": "Level 2b"},
         "Quelle": "Bloom et al."
+    },
+    "cardio_workup": {
+        "DE": {"Aussage": "Nicht-invasive Belastungstests alle 1-3 Jahre für asymptomatische Kandidaten auf Warteliste.", "Evidenz": "KDIGO 2020 / AHA"},
+        "EN": {"Aussage": "Non-invasive stress testing every 1-3 years for asymptomatic candidates on waitlist.", "Evidenz": "KDIGO 2020 / AHA"},
+        "Quelle": "Lentine et al. (Circulation 2012); KDIGO"
+    },
+    "dd_cfdna_kinetics": {
+        "DE": {"Aussage": "dd-cfDNA steigt 1-3 Monate VOR dem Kreatinin an (molekulare Schädigung).", "Evidenz": "Level 2a"},
+        "EN": {"Aussage": "dd-cfDNA rises 1-3 months BEFORE Creatinine (molecular injury).", "Evidenz": "Level 2a"},
+        "Quelle": "Bloom et al. (JASN)"
     }
 }
 
@@ -158,32 +168,67 @@ if nav_selection == nav_options["Dashboard"]:
         st.warning("🧬 **Biomarker**")
         st.write(t("dd-cfDNA ersetzt Biopsien.", "dd-cfDNA replaces biopsies."))
 
-# === 1. PREPARATION ===
+# === 1. PREPARATION (EXPANDED) ===
 elif nav_selection == nav_options["Prep"]:
-    st.title(t("Patientenvorbereitung & Evaluation", "Patient Preparation & Evaluation"))
-    tab1, tab2 = st.tabs([t("Empfänger Workup", "Recipient Workup"), t("Immunologie", "Immunology")])
+    st.title(t("Patientenvorbereitung & Maintenance", "Patient Preparation & Maintenance"))
+    
+    tab1, tab2, tab3 = st.tabs([
+        t("Workup Matrix (Tabelle)", "Workup Matrix (Table)"), 
+        t("Kardiovaskulärer Fokus", "Cardiovascular Focus"),
+        t("Immunologie", "Immunology")
+    ])
     
     with tab1:
-        st.subheader(t("Kardiovaskulär & Infektiologie", "Cardiovascular & Infectious Disease"))
+        st.subheader(t("Wartelisten-Maintenance: Was verfällt wann?", "Waitlist Maintenance: What expires when?"))
+        st.info(t(
+            "Patienten auf der Warteliste müssen 'transplantabel' bleiben. Abgelaufene Untersuchungen führen zur temporären Sperre (NT-Status).",
+            "Patients on the waitlist must remain 'transplantable'. Expired exams lead to temporary suspension (NT status)."
+        ))
         
-        # Bilingual Dataframe
+        # Detailed Clinical Workup Data
         if current_lang == "Deutsch":
-            df_prep = pd.DataFrame({
-                "Untersuchung": ["Stress-Echo", "CT-Becken", "Zahnstatus"],
-                "Intervall": ["12 Monate", "Einmalig", "Jährlich"],
-                "Rationale": ["Ischämie-Risiko", "Anastomosen-Planung", "Infekt-Fokus"]
-            })
+            workup_data = {
+                "Bereich": ["Labor/Virologie", "Labor/Virologie", "Kardiovaskulär", "Kardiovaskulär", "Bildgebung", "Bildgebung", "Vorsorge"],
+                "Untersuchung": ["HIV, HCV, HBV (PCR)", "CMV, EBV, VZV (IgG/IgM)", "EKG + TTE (Echo)", "Stress-Test (Dobutamin/Ergo)", "Röntgen Thorax", "Abdomen Sono (Nieren/Leber)", "Tumorscreening (Gyn/Uro/Haut)"],
+                "Gültigkeit (Update)": ["3 Monate (bzw. akut vor TX)", "Einmalig (außer Status ändert sich)", "12 Monate", "12-24 Monate (je nach Risiko)", "12 Monate", "12 Monate", "12 Monate (Altersabhängig)"],
+                "Kommentar": ["Entscheidend für High-Urgency", "Bestimmt Prophylaxe (Valcyte)", "EF < 30% ist Kontraindikation", "Bei Diabetikern/KHK zwingend", "Infektfokus ausschließen", "Steine/Tumore ausschließen", "Nach Tumorfreiheit (Warnecke-Kriterien)"]
+            }
         else:
-            df_prep = pd.DataFrame({
-                "Exam": ["Stress Echo", "CT Pelvis", "Dental Status"],
-                "Interval": ["12 Months", "Once", "Yearly"],
-                "Rationale": ["Ischemia Risk", "Anastomosis Planning", "Infection Focus"]
-            })
-        st.table(df_prep)
+            workup_data = {
+                "Category": ["Labs/Virology", "Labs/Virology", "Cardiovascular", "Cardiovascular", "Imaging", "Imaging", "Screening"],
+                "Exam": ["HIV, HCV, HBV (PCR)", "CMV, EBV, VZV (IgG/IgM)", "ECG + TTE (Echo)", "Stress Test (Dobutamine/Ergo)", "CXR (Chest X-Ray)", "Abd. Ultrasound", "Cancer Screening (Gyn/Uro/Skin)"],
+                "Validity (Update)": ["3 Months (or pre-Tx)", "Once (unless seroconversion)", "12 Months", "12-24 Months (Risk dependent)", "12 Months", "12 Months", "12 Months (Age dependent)"],
+                "Comment": ["Crucial for High-Urgency", "Determines Prophylaxis", "EF < 30% is contraindication", "Mandatory for Diabetics/CAD", "Rule out infection", "Rule out stones/masses", "Wait times apply (Warnecke)"]
+            }
         
+        df_workup = pd.DataFrame(workup_data)
+        st.dataframe(df_workup, use_container_width=True)
+
     with tab2:
-        st.subheader(t("Immunologische Risikostratifizierung", "Immunological Risk Stratification"))
+        st.subheader(t("Kardiovaskuläres Risiko-Management", "Cardiovascular Risk Management"))
+        st.write(t(
+            "Kardiovaskuläre Ereignisse sind die häufigste Todesursache nach NTX. Ein striktes Screening ist essenziell.",
+            "CV events are the leading cause of death post-KTx. Strict screening is essential."
+        ))
+        get_evidence_badge("cardio_workup")
+        
+        st.markdown(t("#### Algorithmus: Wann Herzkatheter (Coro)?", "#### Algorithm: When Angiography?"))
+        col_c1, col_c2 = st.columns(2)
+        with col_c1:
+            st.error(t("**Indikation zur Angio:**", "**Indication for Angio:**"))
+            st.write("- Pathologischer Stress-Test")
+            st.write("- Bekannte KHK / Stents")
+            st.write("- Diabetes + >50 Jahre + Raucher (High Risk)")
+        with col_c2:
+            st.success(t("**Keine Angio nötig wenn:**", "**No Angio needed if:**"))
+            st.write("- Belastbarkeit > 100 Watt (asymptomatisch)")
+            st.write("- Stress-Echo unauffällig")
+            st.write("- Keine kardialen Vorerkrankungen")
+
+    with tab3:
+        st.subheader(t("Immunologie (HLA)", "Immunology (HLA)"))
         st.write("• **HLA-A/B/C/DR/DQ/DP:** High-Res Typisierung.")
+        st.write("• **PRA (Panel Reactive Antibodies):** " + t("Update alle 3 Monate nötig für Eurotransplant.", "Update every 3 months required for Eurotransplant."))
         st.write("• **Virtuelles Crossmatch:** " + t("Ersetzt physisches XM.", "Replaces physical XM."))
 
 # === 2. DECEASED DONOR ===
@@ -210,7 +255,7 @@ elif nav_selection == nav_options["Deceased"]:
         ))
         
         st.markdown("---")
-        
+        st.markdown("")
         st.markdown("---")
 
         st.markdown(t("#### Workflow: Back-Table Präparation", "#### Workflow: Back-Table Preparation"))
@@ -231,13 +276,13 @@ elif nav_selection == nav_options["Deceased"]:
             """
         ), language="text")
         
-        
+        st.markdown("")
 
     with col_evid:
         st.subheader(t("🔬 Evidenz-Check", "🔬 Evidence Check"))
         st.write(t("Warum Maschinenperfusion?", "Why Machine Perfusion?"))
         get_evidence_badge("machine_perfusion")
-        
+        st.markdown("")
         
         st.write(t("Warum Mannitol?", "Why Mannitol?"))
         get_evidence_badge("mannitol")
@@ -278,7 +323,7 @@ elif nav_selection == nav_options["Living"]:
     with t2:
         st.subheader(t("Detaillierte Schritte", "Detailed Steps"))
         st.markdown(t("**1. Lagerung:** 60° Seitenlage.", "**1. Positioning:** 60° Flank position."))
-        
+        st.markdown("")
         
         st.markdown(t("**2. ICG-Check:** Vor Ureter-Schnitt Perfusion prüfen.", "**2. ICG-Check:** Verify perfusion before ureter cut."))
         get_evidence_badge("icg_ureter")
@@ -323,7 +368,7 @@ elif nav_selection == nav_options["Recipient"]:
     
     with t2:
         st.subheader(t("Warum Robotisch? (Vergleichsdaten)", "Why Robotic? (Comparison Data)"))
-        
+        st.markdown("")
         
         if current_lang == "Deutsch":
             comp_df = pd.DataFrame({
@@ -358,15 +403,67 @@ elif nav_selection == nav_options["Recipient"]:
             })
         st.table(rec_meds)
 
-# === 5. FOLLOW UP ===
+# === 5. FOLLOW UP (EXPANDED) ===
 elif nav_selection == nav_options["FollowUp"]:
     st.title(t("Nachsorge & Guidelines", "Follow-Up & Guidelines"))
-    st.subheader(t("Diagnostik 2026", "Diagnostics 2026"))
-    st.write(t("Neben Kreatinin gewinnt **dd-cfDNA** an Bedeutung.", "Besides Creatinine, **dd-cfDNA** is gaining importance."))
-    get_evidence_badge("dd_cfdna")
     
-    st.subheader(t("Immunsuppression (Standard)", "Immunosuppression (Standard)"))
-    st.code("Tacrolimus (Target 8-10) + MMF (2g) + Steroide (Tapering)")
+    # New Tabs for better structure
+    f_tab1, f_tab2 = st.tabs([t("Diagnostik: Kreatinin vs. dd-cfDNA", "Diagnostics: Creatinine vs. dd-cfDNA"), t("Immunsuppression", "Immunosuppression")])
+
+    with f_tab1:
+        st.subheader(t("Paradigmenwechsel: Von Funktion zu Molekularer Schädigung", "Paradigm Shift: From Function to Molecular Injury"))
+        
+        col_dd1, col_dd2 = st.columns([1, 1])
+        
+        with col_dd1:
+            st.markdown(t("### 📉 Der Standard: Kreatinin", "### 📉 The Standard: Creatinine"))
+            st.write(t(
+                "Kreatinin ist ein **Funktionsmarker**. Er steigt erst an, wenn bereits ~50% der Nephrone geschädigt sind.",
+                "Creatinine is a **functional marker**. It only rises once ~50% of nephrons are already compromised."
+            ))
+            st.warning(t("Problem: 'Lag Time' (Verzögerung). Eine Abstoßung läuft oft schon seit Wochen, bevor das Kreatinin steigt.", 
+                         "Problem: 'Lag Time'. Rejection often proceeds for weeks before Creatinine rises."))
+
+        with col_dd2:
+            st.markdown(t("### 🧬 Die Zukunft: dd-cfDNA", "### 🧬 The Future: dd-cfDNA"))
+            st.write(t(
+                "Donor-derived cell-free DNA ist ein **Schädigungsmarker** (Injury Marker). Zellen des Spenders sterben ab und setzen DNA ins Blut frei.",
+                "Donor-derived cell-free DNA is an **injury marker**. Donor cells die and release DNA into the bloodstream."
+            ))
+            st.success(t("Vorteil: Hoher Negativer Prädiktiver Wert (NPV). Wenn dd-cfDNA niedrig ist (<0.5%), ist eine Abstoßung sehr unwahrscheinlich -> Biopsie gespart.",
+                         "Benefit: High Negative Predictive Value (NPV). If dd-cfDNA is low (<0.5%), rejection is highly unlikely -> Biopsy avoided."))
+
+        st.markdown("---")
+        st.markdown("")
+        st.caption(t("Grafik: dd-cfDNA (Rot) steigt Wochen vor dem Kreatinin (Blau).", "Graph: dd-cfDNA (Red) rises weeks before Creatinine (Blue)."))
+        st.markdown("---")
+
+        st.subheader(t("Vergleichstabelle", "Comparison Table"))
+        
+        if current_lang == "Deutsch":
+            comp_markers = pd.DataFrame({
+                "Marker": ["Serum Kreatinin", "Proteinurie", "dd-cfDNA (Blut)"],
+                "Was wird gemessen?": ["Filtrationsleistung (GFR)", "Glomeruläre Integrität", "Zelluntergang (Nekrose/Apoptose)"],
+                "Detektionszeitpunkt": ["Spät (Funktionsverlust)", "Mittel", "Früh (Aktive Entzündung)"],
+                "Cut-Off": ["Trend > 20% Anstieg", "> 0.5 - 1.0 g/g", "> 0.5% - 1.0% (Assay-abhängig)"]
+            })
+        else:
+            comp_markers = pd.DataFrame({
+                "Marker": ["Serum Creatinine", "Proteinuria", "dd-cfDNA (Blood)"],
+                "Measures": ["Filtration Power (GFR)", "Glomerular Integrity", "Cell Death (Necrosis/Apoptosis)"],
+                "Detection Time": ["Late (Function Loss)", "Medium", "Early (Active Inflammation)"],
+                "Cut-Off": ["Trend > 20% rise", "> 0.5 - 1.0 g/g", "> 0.5% - 1.0% (Assay dependent)"]
+            })
+        st.table(comp_markers)
+        get_evidence_badge("dd_cfdna_kinetics")
+
+    with f_tab2:
+        st.subheader(t("Immunsuppression (Standard)", "Immunosuppression (Standard)"))
+        st.code("Tacrolimus (Target 8-10 ng/ml) + MMF (2g/d) + Steroide (Tapering)")
+        st.write(t(
+            "Biopsie-Indikation bleibt Goldstandard bei unklarem Befund.",
+            "Biopsy remains gold standard for unclear findings."
+        ))
 
 # === 6. SEARCH ===
 elif nav_selection == nav_options["Search"]:
