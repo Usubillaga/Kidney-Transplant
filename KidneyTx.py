@@ -210,8 +210,9 @@ elif module == "4. Nachsorge & Follow-Up":
             get_evidence_badge("dd_cfdna")
             st.write("**Vorteil:** Steigt VOR dem Kreatinin an (molekulare Schädigung).")
             
-        with col_old:
-            st.secondary("Standard: Kreatinin & Proteinurie")
+    with col_old:
+            st.info("Standard: Kreatinin & Proteinurie") 
+            
             st.write("Goldstandard, aber 'Lag-Time' (steigt erst bei ca. 50% Funktionsverlust).")
 
     with tabs[2]:
