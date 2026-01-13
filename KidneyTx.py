@@ -7,7 +7,7 @@ import numpy as np
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="NTX Master Guide 2026",
+    page_title="NTX Guide",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded"
