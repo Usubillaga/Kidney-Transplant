@@ -154,21 +154,49 @@ if nav == "1. Preparation (Evaluation)":
         st.write("• **HLA-A/B/C/DR/DQ/DP:** High-Res Typisierung.")
         st.write("• **Virtuelles Crossmatch:** Ersetzt physisches XM bei Lebendspende.")
 
-# === 2. DECEASED DONOR ===
-if nav == "2. Deceased Donor (Leiche)":
-    st.title("Postmortale Spende (Deceased Donor)")
-    col1, col2 = st.columns([2,1])
-    with col1:
-        st.subheader("Konservierung")
-        st.write("Vergleich: Statische Kälte (SCS) vs. Hypotherme Maschinenperfusion (HMP)")
-        st.table(pd.DataFrame({
-            "Methode": ["Eisbox (SCS)", "Maschine (HMP)"],
-            "DGF-Rate": ["Hoch (ca. 30%)", "Reduziert (ca. 20%)"],
-            "Evidenz": ["Standard", "Empfohlen für ECD"]
-        }))
-    with col2:
-        st.subheader("Evidenz")
+2. LEICHENSPENDE (DECEASED DONOR)
+# --------------------------------------------------------
+elif module == "2. Leichenspende (Deceased Donor)":
+    st.title("Postmortale Spende (DBD / DCD)")
+    st.markdown("Prozesse von der Entnahme bis zur Implantation.")
+    
+    col_proc, col_evid = st.columns([2, 1])
+    
+    with col_proc:
+        st.subheader("Ablauf & Perfusion")
+        st.markdown("""
+        1.  **Explantation:** En-bloc Entnahme der Nieren inkl. Aorta/Vena Cava Patch.
+        2.  **Perfusion:** Sofortige Spülung mit 4°C kalter Lösung (z.B. HTK-Custodiol oder UW-Lösung).
+        3.  **Lagerung:** Entscheidung Statisch vs. Maschine.
+        """)
+        
+        st.markdown("#### Workflow: Back-Table Präparation")
+        # Visualisierung Backtable
+        st.code("""
+        1. Trennung der Nieren (Split)
+        2. Entfettung des Hilus (Vorsicht: Ureter-Vaskularisation!)
+        3. Ligatur kleiner Seitenäste (Hemo-Clips)
+        4. Biopsie (bei marginalen Spendern / "Rescue Allocation")
+        """, language="text")
+
+    with col_evid:
+        st.subheader("🔬 Evidenz-Check")
+        st.write("Warum Maschinenperfusion?")
         get_evidence_badge("machine_perfusion")
+        
+        st.write("Warum Mannitol beim Empfänger?")
+        get_evidence_badge("mannitol")
+
+    st.divider()
+    
+    st.subheader("Vergleich: Lagerungsmethoden")
+    comp_df = pd.DataFrame({
+        "Methode": ["Statische Kältelagerung (SCS)", "Hypotherme Maschinenperfusion (HMP)"],
+        "Prinzip": ["Eisbox (4°C)", "Pulsatile Durchspülung (Druckgesteuert)"],
+        "Vorteil": ["Einfach, Billig, Standard", "Geringere Rate an DGF, Bessere Bewertung der Organqualität (Resistenz)"],
+        "Indikation": ["Standard-Spender (SCD)", "Marginale Spender (ECD), DCD, Lange Ischämiezeit"]
+    })
+    st.table(comp_df)
 
 # === 3. LIVING DONOR (RDN) ===
 if nav == "3. Living Donor (RDN)":
