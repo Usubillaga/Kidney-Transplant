@@ -177,7 +177,7 @@ def render_recipient_workflow(lang):
     return dot
 
 # --- SIDEBAR NAVIGATION ---
-st.sidebar.title("NTX Master 2026")
+st.sidebar.title("NTX Sidebar")
 # Language Selector
 st.session_state['lang'] = st.sidebar.selectbox("Language / Sprache", ["Deutsch", "English"])
 current_lang = st.session_state['lang']
