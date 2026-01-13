@@ -260,12 +260,12 @@ elif nav_selection == nav_options["Prep"]:
             if current_lang == "Deutsch":
                 warnecke_data = {
                     "Tumor-Entität": ["Nierenzellkarzinom (Inzidentell, klein)", "Nierenzellkarzinom (Symptomatisch)", "Blasenkarzinom (Nicht-invasiv)", "Blasenkarzinom (Invasiv)", "Prostatakarzinom (Low Risk)", "Mamma-Karzinom", "Kolorektales Karzinom", "Melanom"],
-                    "Wartezeit": ["0 Jahre (Sofort)", "2 Jahre", "0 Jahre", "2-5 Jahre", "0 Jahre (Active Surveillance)", "2-5 Jahre (Stadienabhängig)", "2 Jahre", "> 5 Jahre"]
+                    "Wartezeit": ["0 Jahre (Sofort)", "2 Jahre", "0 Jahre", "2-5 Jahre", "0 Jahre (Active Surveillance)", "2-5 Jahre (Stadienabhängig)", "2 Jahre", "mehr als 5 Jahre"]
                 }
             else:
                  warnecke_data = {
                     "Tumor Entity": ["RCC (Incidental, small)", "RCC (Symptomatic)", "Bladder Cancer (Non-invasive)", "Bladder Cancer (Invasive)", "Prostate Cancer (Low Risk)", "Breast Cancer", "Colorectal Cancer", "Melanoma"],
-                    "Wait Time": ["0 Years (Immediate)", "2 Years", "0 Years", "2-5 Years", "0 Years (Active Surveillance)", "2-5 Years (Stage dependent)", "2 Years", "> 5 Years"]
+                    "Wait Time": ["0 Years (Immediate)", "2 Years", "0 Years", "2-5 Years", "0 Years (Active Surveillance)", "2-5 Years (Stage dependent)", "2 Years", "more than 5 Years"]
                 }
             st.table(pd.DataFrame(warnecke_data))
         # ---------------------------------
