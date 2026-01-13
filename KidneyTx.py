@@ -2,23 +2,62 @@ import streamlit as st
 from pymed import PubMed
 import pandas as pd
 import graphviz
+import numpy as np
+import matplotlib.pyplot as plt
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="NTX Guide",
+    page_title="NTX Master Guide 2026",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # --- LANGUAGE SETTINGS ---
-# Helper function for simple text switching
 def t(de, en):
     if st.session_state.get('lang', 'Deutsch') == 'Deutsch':
         return de
     return en
 
-# --- EVIDENCE DATABASE (BILINGUAL) ---
+# --- PLOTTING FUNCTION (THE "ALWAYS AVAILABLE" GRAPHIC) ---
+def render_biomarker_chart(lang):
+    """
+    Generates the Red vs Blue kinetics chart programmatically.
+    This ensures the graphic is always available without external downloads.
+    """
+    # 1. Create Data
+    # X-Axis: Weeks relative to clinical rejection (0)
+    weeks = np.arange(-6, 5, 1) 
+    
+    # Y-Axis Data (Mock values for visualization)
+    # dd-cfDNA (Red): Spikes early (Week -3 to -1)
+    dna_levels = [0.2, 0.25, 0.4, 1.2, 2.8, 1.9, 1.2, 0.8, 0.5, 0.3, 0.2]
+    # Creatinine (Blue): Spikes late (Week 0 to +1)
+    krea_levels = [1.0, 1.0, 1.0, 1.0, 1.05, 1.1, 1.5, 2.2, 2.5, 2.0, 1.6]
+
+    # 2. Plotting
+    fig, ax = plt.subplots(figsize=(8, 4))
+    
+    # Plot Lines
+    ax.plot(weeks, dna_levels, color='#d32f2f', label='dd-cfDNA (Injury)', linewidth=3, marker='o') # RED
+    ax.plot(weeks, krea_levels, color='#1976d2', label='Creatinine (Function)', linewidth=3, linestyle='--', marker='x') # BLUE
+    
+    # Annotations
+    ax.axvline(x=0, color='gray', linestyle=':', alpha=0.6)
+    label_rejection = "Clinical Rejection (Biopsy)" if lang != "Deutsch" else "Klinische Abstoßung (Biopsie)"
+    ax.text(0.1, 2.8, label_rejection, fontsize=9, color='gray')
+
+    # Styling
+    ax.set_xlabel("Weeks relative to Diagnosis" if lang != "Deutsch" else "Wochen relativ zur Diagnose")
+    ax.set_ylabel("Relative Level (Normalized)")
+    ax.set_title("Kinetics: Molecular Injury vs. Functional Loss")
+    ax.legend()
+    ax.grid(True, alpha=0.2)
+    
+    # 3. Return Figure
+    return fig
+
+# --- EVIDENCE DATABASE ---
 evidence_db = {
     "heparin_donor": {
         "DE": {"Aussage": "Systemische Heparinisierung (3000-5000 IE) vor Abklemmung verhindert Thrombosen.", "Evidenz": "Level 1b"},
@@ -83,14 +122,13 @@ def fetch_pubmed_data(query):
     except:
         return []
 
-# --- GRAPHVIZ WORKFLOWS (BILINGUAL) ---
-
+# --- GRAPHVIZ WORKFLOWS ---
 def render_donor_workflow(lang):
     """SPENDER Workflow (RDN)"""
     is_de = lang == "Deutsch"
     dot = graphviz.Digraph(comment='RDN')
     dot.attr(rankdir='TB', size='8')
-    dot.attr('node', shape='box', style='filled', fillcolor='#e8f5e9') # Green tint
+    dot.attr('node', shape='box', style='filled', fillcolor='#e8f5e9')
     
     dot.node('A', '1. Lagerung (60°)' if is_de else '1. Positioning (60°)')
     dot.node('B', '2. Präparation (Hilus)' if is_de else '2. Dissection (Hilus)')
@@ -111,7 +149,7 @@ def render_recipient_workflow(lang):
     is_de = lang == "Deutsch"
     dot = graphviz.Digraph(comment='RAKT')
     dot.attr(rankdir='TB', size='8')
-    dot.attr('node', shape='box', style='filled', fillcolor='#e3f2fd') # Blue tint
+    dot.attr('node', shape='box', style='filled', fillcolor='#e3f2fd')
 
     dot.node('1', '1. Zugang' if is_de else '1. Access (Pfannenstiel)')
     dot.node('2', '2. Gefäß-Exposure' if is_de else '2. Vessel Exposure')
@@ -133,11 +171,9 @@ def render_recipient_workflow(lang):
 
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.title("NTX Master 2026")
-# Language Selector
 st.session_state['lang'] = st.sidebar.selectbox("Language / Sprache", ["Deutsch", "English"])
 current_lang = st.session_state['lang']
 
-# Define navigation options based on language
 nav_options = {
     "Dashboard": "Dashboard (News)",
     "Prep": "1. Preparation (Evaluation)",
@@ -147,7 +183,6 @@ nav_options = {
     "FollowUp": "5. Follow-Up & Guidelines",
     "Search": "6. Search (PubMed)"
 }
-
 nav_selection = st.sidebar.radio("Navigation", list(nav_options.values()))
 
 # --- CONTENT ---
@@ -181,35 +216,52 @@ elif nav_selection == nav_options["Prep"]:
     with tab1:
         st.subheader(t("Wartelisten-Maintenance: Was verfällt wann?", "Waitlist Maintenance: What expires when?"))
         st.info(t(
-            "Patienten auf der Warteliste müssen 'transplantabel' bleiben. Abgelaufene Untersuchungen führen zur temporären Sperre (NT-Status).",
-            "Patients on the waitlist must remain 'transplantable'. Expired exams lead to temporary suspension (NT status)."
+            "Patienten auf der Warteliste müssen 'transplantabel' bleiben.",
+            "Patients on the waitlist must remain 'transplantable'."
         ))
         
-        # Detailed Clinical Workup Data
+        # General Workup Data
         if current_lang == "Deutsch":
             workup_data = {
-                "Bereich": ["Labor/Virologie", "Labor/Virologie", "Kardiovaskulär", "Kardiovaskulär", "Bildgebung", "Bildgebung", "Vorsorge"],
-                "Untersuchung": ["HIV, HCV, HBV (PCR)", "CMV, EBV, VZV (IgG/IgM)", "EKG + TTE (Echo)", "Stress-Test (Dobutamin/Ergo)", "Röntgen Thorax", "Abdomen Sono (Nieren/Leber)", "Tumorscreening (Gyn/Uro/Haut)"],
-                "Gültigkeit (Update)": ["3 Monate (bzw. akut vor TX)", "Einmalig (außer Status ändert sich)", "12 Monate", "12-24 Monate (je nach Risiko)", "12 Monate", "12 Monate", "12 Monate (Altersabhängig)"],
-                "Kommentar": ["Entscheidend für High-Urgency", "Bestimmt Prophylaxe (Valcyte)", "EF < 30% ist Kontraindikation", "Bei Diabetikern/KHK zwingend", "Infektfokus ausschließen", "Steine/Tumore ausschließen", "Nach Tumorfreiheit (Warnecke-Kriterien)"]
+                "Bereich": ["Labor/Virologie", "Kardiovaskulär", "Bildgebung"],
+                "Untersuchung": ["HIV, HCV, HBV", "Stress-Test", "Röntgen Thorax"],
+                "Gültigkeit": ["3 Monate", "12 Monate", "12 Monate"],
+                "Kommentar": ["High-Urgency relevant", "Diabetiker!", "Infektfokus"]
             }
         else:
             workup_data = {
-                "Category": ["Labs/Virology", "Labs/Virology", "Cardiovascular", "Cardiovascular", "Imaging", "Imaging", "Screening"],
-                "Exam": ["HIV, HCV, HBV (PCR)", "CMV, EBV, VZV (IgG/IgM)", "ECG + TTE (Echo)", "Stress Test (Dobutamine/Ergo)", "CXR (Chest X-Ray)", "Abd. Ultrasound", "Cancer Screening (Gyn/Uro/Skin)"],
-                "Validity (Update)": ["3 Months (or pre-Tx)", "Once (unless seroconversion)", "12 Months", "12-24 Months (Risk dependent)", "12 Months", "12 Months", "12 Months (Age dependent)"],
-                "Comment": ["Crucial for High-Urgency", "Determines Prophylaxis", "EF < 30% is contraindication", "Mandatory for Diabetics/CAD", "Rule out infection", "Rule out stones/masses", "Wait times apply (Warnecke)"]
+                "Category": ["Virology", "Cardio", "Imaging"],
+                "Exam": ["HIV, HCV, HBV", "Stress Test", "CXR"],
+                "Validity": ["3 Months", "12 Months", "12 Months"],
+                "Comment": ["High-Urgency", "Diabetics!", "Infection"]
             }
-        
-        df_workup = pd.DataFrame(workup_data)
-        st.dataframe(df_workup, use_container_width=True)
+        st.dataframe(pd.DataFrame(workup_data), use_container_width=True)
+
+        # --- WARNECKE CRITERIA SECTION (NEW) ---
+        st.markdown("---")
+        with st.expander(t("⚠️ WARNECKE-KRITERIEN (Onkologische Wartezeiten)", "⚠️ WARNECKE CRITERIA (Oncological Wait Times)"), expanded=False):
+            st.markdown(t(
+                "Mindestwartezeit nach kurativer Therapie vor Listung (Rezidivfreiheit).",
+                "Minimum wait time after curative therapy before listing (recurrence free)."
+            ))
+            
+            if current_lang == "Deutsch":
+                warnecke_data = {
+                    "Tumor Entität": ["Basaliom (Haut)", "Nierenzellkarzinom (T1a)", "Blasenkarzinom (Ta/T1)", "Colon-Ca (Duke A/B)", "Mamma-Ca (Stadium I)", "Melanom (< 1mm)", "Melanom (> 1mm)", "Lungen-Ca (NSCLC)"],
+                    "Wartezeit": ["0 Jahre", "0 Jahre", "0 Jahre", "2-5 Jahre", "2 Jahre", "2 Jahre", "5 Jahre", "2-5 Jahre"],
+                    "Risiko": ["Niedrig", "Niedrig", "Niedrig", "Mittel", "Mittel", "Mittel", "Hoch", "Hoch"]
+                }
+            else:
+                warnecke_data = {
+                    "Tumor Entity": ["Basal Cell (Skin)", "RCC (T1a)", "Bladder (Ta/T1)", "Colon (Duke A/B)", "Breast (Stage I)", "Melanoma (< 1mm)", "Melanoma (> 1mm)", "Lung (NSCLC)"],
+                    "Wait Time": ["0 Years", "0 Years", "0 Years", "2-5 Years", "2 Years", "2 Years", "5 Years", "2-5 Years"],
+                    "Risk": ["Low", "Low", "Low", "Medium", "Medium", "Medium", "High", "High"]
+                }
+            st.table(pd.DataFrame(warnecke_data))
+            st.caption("Ref: Warnecke et al. / Kasiske Guidelines")
 
     with tab2:
         st.subheader(t("Kardiovaskuläres Risiko-Management", "Cardiovascular Risk Management"))
-        st.write(t(
-            "Kardiovaskuläre Ereignisse sind die häufigste Todesursache nach NTX. Ein striktes Screening ist essenziell.",
-            "CV events are the leading cause of death post-KTx. Strict screening is essential."
-        ))
         get_evidence_badge("cardio_workup")
         
         st.markdown(t("#### Algorithmus: Wann Herzkatheter (Coro)?", "#### Algorithm: When Angiography?"))
@@ -218,260 +270,100 @@ elif nav_selection == nav_options["Prep"]:
             st.error(t("**Indikation zur Angio:**", "**Indication for Angio:**"))
             st.write("- Pathologischer Stress-Test")
             st.write("- Bekannte KHK / Stents")
-            st.write("- Diabetes + >50 Jahre + Raucher (High Risk)")
+            st.write("- Diabetes + >50 Jahre + Raucher")
         with col_c2:
             st.success(t("**Keine Angio nötig wenn:**", "**No Angio needed if:**"))
-            st.write("- Belastbarkeit > 100 Watt (asymptomatisch)")
+            st.write("- Belastbarkeit > 100 Watt")
             st.write("- Stress-Echo unauffällig")
-            st.write("- Keine kardialen Vorerkrankungen")
 
     with tab3:
-        st.subheader(t("Immunologie (HLA)", "Immunology (HLA)"))
-        st.write("• **HLA-A/B/C/DR/DQ/DP:** High-Res Typisierung.")
-        st.write("• **PRA (Panel Reactive Antibodies):** " + t("Update alle 3 Monate nötig für Eurotransplant.", "Update every 3 months required for Eurotransplant."))
-        st.write("• **Virtuelles Crossmatch:** " + t("Ersetzt physisches XM.", "Replaces physical XM."))
+        st.subheader("Immunologie")
+        st.write("• **HLA** High-Res")
+        st.write("• **Virtuelles Crossmatch**")
 
 # === 2. DECEASED DONOR ===
 elif nav_selection == nav_options["Deceased"]:
     st.title(t("Postmortale Spende (DBD / DCD)", "Deceased Donor (DBD / DCD)"))
-    st.markdown(t("Prozesse von der Entnahme bis zur Implantation.", "Processes from retrieval to implantation."))
-    
-    col_proc, col_evid = st.columns([2, 1])
-    
-    with col_proc:
-        st.subheader(t("Ablauf & Perfusion", "Workflow & Perfusion"))
-        
-        st.markdown(t(
-            """
-            1.  **Explantation:** En-bloc Entnahme der Nieren inkl. Aorta/Vena Cava Patch.
-            2.  **Perfusion:** Sofortige Spülung mit 4°C kalter Lösung (z.B. HTK).
-            3.  **Lagerung:** Entscheidung Statisch vs. Maschine.
-            """,
-            """
-            1.  **Explantation:** En-bloc extraction including Aorta/Vena Cava patch.
-            2.  **Perfusion:** Immediate flush with 4°C solution (e.g., HTK).
-            3.  **Storage:** Decision Static vs. Machine.
-            """
-        ))
-        
-        st.markdown("---")
+    col1, col2 = st.columns([2,1])
+    with col1:
+        st.subheader("Ablauf")
+        st.write("1. Explantation (En-Bloc)")
+        st.write("2. Perfusion (HTK)")
         st.markdown("")
-        st.markdown("---")
-
-        st.markdown(t("#### Workflow: Back-Table Präparation", "#### Workflow: Back-Table Preparation"))
-        
-        # Visualisierung Backtable
-        st.code(t(
-            """
-            1. Trennung der Nieren (Split)
-            2. Entfettung des Hilus (Vorsicht: Ureter-Vaskularisation!)
-            3. Ligatur kleiner Seitenäste (Hemo-Clips)
-            4. Biopsie (bei marginalen Spendern)
-            """,
-            """
-            1. Splitting the kidneys
-            2. Hilar defatting (Caution: Ureter vascularity!)
-            3. Ligation of small branches (Hemo-clips)
-            4. Biopsy (for marginal donors)
-            """
-        ), language="text")
-        
+        st.code("Back-Table: Split, Entfettung, Ligatur, Biopsie", language="text")
         st.markdown("")
-
-    with col_evid:
-        st.subheader(t("🔬 Evidenz-Check", "🔬 Evidence Check"))
-        st.write(t("Warum Maschinenperfusion?", "Why Machine Perfusion?"))
+    with col2:
+        st.subheader("Evidenz")
         get_evidence_badge("machine_perfusion")
         st.markdown("")
-        
-        st.write(t("Warum Mannitol?", "Why Mannitol?"))
-        get_evidence_badge("mannitol")
-
-    st.divider()
-    
-    st.subheader(t("Vergleich: Lagerungsmethoden", "Comparison: Storage Methods"))
-    if current_lang == "Deutsch":
-        comp_df = pd.DataFrame({
-            "Methode": ["Statische Kältelagerung (SCS)", "Hypotherme Maschinenperfusion (HMP)"],
-            "Prinzip": ["Eisbox (4°C)", "Pulsatile Durchspülung"],
-            "Vorteil": ["Einfach, Billig", "Geringere DGF Rate, Qualitätscheck"],
-            "Indikation": ["Standard-Spender (SCD)", "Marginale Spender (ECD)"]
-        })
-    else:
-        comp_df = pd.DataFrame({
-            "Method": ["Static Cold Storage (SCS)", "Hypothermic Machine Perfusion (HMP)"],
-            "Principle": ["Ice box (4°C)", "Pulsatile Flow"],
-            "Benefit": ["Simple, Cheap", "Lower DGF rate, Quality Assessment"],
-            "Indication": ["Standard Donor (SCD)", "Marginal Donor (ECD)"]
-        })
-    st.table(comp_df)
 
 # === 3. LIVING DONOR (RDN) ===
 elif nav_selection == nav_options["Living"]:
-    st.title(t("Robotische Spendernephrektomie (RDN)", "Robotic Donor Nephrectomy (RDN)"))
-    
-    t1, t2, t3 = st.tabs([
-        t("Workflow (Diagramm)", "Workflow (Diagram)"), 
-        t("Schritte & Technik", "Steps & Technique"), 
-        t("Pharmakologie", "Pharmacology")
-    ])
+    st.title("Robotische Spendernephrektomie (RDN)")
+    t1, t2, t3 = st.tabs(["Workflow", "Technik", "Pharma"])
     
     with t1:
         st.graphviz_chart(render_donor_workflow(current_lang))
-        st.caption(t("Fokus: Sicherheit & Minimale Ischämie", "Focus: Safety & Minimal Ischemia"))
-    
     with t2:
-        st.subheader(t("Detaillierte Schritte", "Detailed Steps"))
-        st.markdown(t("**1. Lagerung:** 60° Seitenlage.", "**1. Positioning:** 60° Flank position."))
+        st.subheader("Schritte")
+        st.write("1. Lagerung 60°")
         st.markdown("")
-        
-        st.markdown(t("**2. ICG-Check:** Vor Ureter-Schnitt Perfusion prüfen.", "**2. ICG-Check:** Verify perfusion before ureter cut."))
+        st.write("2. ICG Check")
         get_evidence_badge("icg_ureter")
-        
-        st.markdown(t("**3. Stapling:** Vascular Stapler verwenden.", "**3. Stapling:** Use Vascular Stapler."))
+        st.write("3. Stapling")
         get_evidence_badge("stapler_safety")
-        
     with t3:
-        st.subheader(t("Spender-Medikation (Intra-Op)", "Donor Medication (Intra-Op)"))
-        st.error(t("Gabe 3-5 min vor Abklemmen!", "Administer 3-5 min before clamping!"))
-        
-        if current_lang == "Deutsch":
-            pharma_df = pd.DataFrame({
-                "Medikament": ["Heparin", "Mannitol", "Furosemid"],
-                "Dosis": ["5000 IE", "25g (125ml)", "20-40mg"],
-                "Effekt": ["Thromboseprophylaxe", "Radikalfänger", "Diurese"]
-            })
-        else:
-            pharma_df = pd.DataFrame({
-                "Drug": ["Heparin", "Mannitol", "Furosemide"],
-                "Dose": ["5000 IU", "25g (125ml)", "20-40mg"],
-                "Effect": ["Thrombosis Prophylaxis", "Radical Scavenger", "Diuresis"]
-            })
-        st.table(pharma_df)
-        get_evidence_badge("heparin_donor")
+        st.error("Heparin 3-5 min vor Clip!")
+        st.table(pd.DataFrame({"Drug": ["Heparin", "Mannitol"], "Dose": ["5000 IE", "25g"]}))
 
 # === 4. RECIPIENT SURGERY (RAKT) ===
 elif nav_selection == nav_options["Recipient"]:
-    st.title(t("Robotische Implantation (RAKT)", "Robotic Implantation (RAKT)"))
-    st.info(t("Detaillierter Workflow & Vergleich", "Detailed Workflow & Comparison"))
-
-    t1, t2, t3 = st.tabs([
-        t("Workflow (Diagramm)", "Workflow (Diagram)"), 
-        t("Vergleich (Offen vs. RAKT)", "Comparison (Open vs. RAKT)"), 
-        t("Pharmakologie", "Pharmacology")
-    ])
-    
+    st.title("Robotische Implantation (RAKT)")
+    t1, t2 = st.tabs(["Workflow", "Vergleich"])
     with t1:
-        st.subheader(t("Implantations-Workflow", "Implantation Workflow"))
-        st.write(t("Beachten Sie die **Regionale Hypothermie**.", "Note the **Regional Hypothermia**."))
         st.graphviz_chart(render_recipient_workflow(current_lang))
-    
     with t2:
-        st.subheader(t("Warum Robotisch? (Vergleichsdaten)", "Why Robotic? (Comparison Data)"))
         st.markdown("")
-        
-        if current_lang == "Deutsch":
-            comp_df = pd.DataFrame({
-                "Parameter": ["Inzisionslänge", "Wundinfektion (SSI)", "Lymphozelen", "Warm-Ischämie"],
-                "Offene NTX": ["15-20 cm", "10-15% (bei BMI>30)", "Häufig", "30-40 min"],
-                "Robotische NTX": ["6 cm", "< 4%", "Selten", "45-55 min"]
-            })
-        else:
-            comp_df = pd.DataFrame({
-                "Parameter": ["Incision Length", "Infection (SSI)", "Lymphoceles", "Warm Ischemia"],
-                "Open KTx": ["15-20 cm", "10-15% (if BMI>30)", "Frequent", "30-40 min"],
-                "Robotic KTx": ["6 cm", "< 4%", "Rare", "45-55 min"]
-            })
-        st.table(comp_df)
         get_evidence_badge("rakt_safety")
-        
-    with t3:
-        st.subheader(t("Empfänger-Medikation", "Recipient Medication"))
-        st.warning(t("Timing: Bevor die Gefäßklemmen geöffnet werden.", "Timing: Before unclamping."))
-        
-        if current_lang == "Deutsch":
-            rec_meds = pd.DataFrame({
-                "Medikament": ["Methylprednisolon", "Furosemid"],
-                "Dosis": ["250-500 mg", "200 mg"],
-                "Ziel": ["Schutz vor Reperfusionsschaden", "Anregung Primärfunktion"]
-            })
-        else:
-            rec_meds = pd.DataFrame({
-                "Drug": ["Methylprednisolone", "Furosemide"],
-                "Dose": ["250-500 mg", "200 mg"],
-                "Goal": ["Reperfusion Injury Protection", "Kickstart Function"]
-            })
-        st.table(rec_meds)
 
-# === 5. FOLLOW UP (EXPANDED) ===
+# === 5. FOLLOW UP (UPDATED WITH GRAPHIC) ===
 elif nav_selection == nav_options["FollowUp"]:
     st.title(t("Nachsorge & Guidelines", "Follow-Up & Guidelines"))
     
-    # New Tabs for better structure
     f_tab1, f_tab2 = st.tabs([t("Diagnostik: Kreatinin vs. dd-cfDNA", "Diagnostics: Creatinine vs. dd-cfDNA"), t("Immunsuppression", "Immunosuppression")])
 
     with f_tab1:
-        st.subheader(t("Paradigmenwechsel: Von Funktion zu Molekularer Schädigung", "Paradigm Shift: From Function to Molecular Injury"))
+        st.subheader(t("Paradigmenwechsel: Funktion vs. Schädigung", "Paradigm Shift: Function vs. Injury"))
         
         col_dd1, col_dd2 = st.columns([1, 1])
-        
         with col_dd1:
-            st.markdown(t("### 📉 Der Standard: Kreatinin", "### 📉 The Standard: Creatinine"))
-            st.write(t(
-                "Kreatinin ist ein **Funktionsmarker**. Er steigt erst an, wenn bereits ~50% der Nephrone geschädigt sind.",
-                "Creatinine is a **functional marker**. It only rises once ~50% of nephrons are already compromised."
-            ))
-            st.warning(t("Problem: 'Lag Time' (Verzögerung). Eine Abstoßung läuft oft schon seit Wochen, bevor das Kreatinin steigt.", 
-                         "Problem: 'Lag Time'. Rejection often proceeds for weeks before Creatinine rises."))
-
+            st.markdown(t("### 📉 Standard: Kreatinin", "### 📉 Standard: Creatinine"))
+            st.warning(t("Problem: 'Lag Time'. Steigt erst spät.", "Problem: 'Lag Time'. Rises late."))
         with col_dd2:
-            st.markdown(t("### 🧬 Die Zukunft: dd-cfDNA", "### 🧬 The Future: dd-cfDNA"))
-            st.write(t(
-                "Donor-derived cell-free DNA ist ein **Schädigungsmarker** (Injury Marker). Zellen des Spenders sterben ab und setzen DNA ins Blut frei.",
-                "Donor-derived cell-free DNA is an **injury marker**. Donor cells die and release DNA into the bloodstream."
-            ))
-            st.success(t("Vorteil: Hoher Negativer Prädiktiver Wert (NPV). Wenn dd-cfDNA niedrig ist (<0.5%), ist eine Abstoßung sehr unwahrscheinlich -> Biopsie gespart.",
-                         "Benefit: High Negative Predictive Value (NPV). If dd-cfDNA is low (<0.5%), rejection is highly unlikely -> Biopsy avoided."))
+            st.markdown(t("### 🧬 Zukunft: dd-cfDNA", "### 🧬 Future: dd-cfDNA"))
+            st.success(t("Vorteil: Steigt Wochen früher.", "Benefit: Rises weeks earlier."))
 
         st.markdown("---")
-        st.markdown("")
-        st.caption(t("Grafik: dd-cfDNA (Rot) steigt Wochen vor dem Kreatinin (Blau).", "Graph: dd-cfDNA (Red) rises weeks before Creatinine (Blue)."))
-        st.markdown("---")
-
-        st.subheader(t("Vergleichstabelle", "Comparison Table"))
         
-        if current_lang == "Deutsch":
-            comp_markers = pd.DataFrame({
-                "Marker": ["Serum Kreatinin", "Proteinurie", "dd-cfDNA (Blut)"],
-                "Was wird gemessen?": ["Filtrationsleistung (GFR)", "Glomeruläre Integrität", "Zelluntergang (Nekrose/Apoptose)"],
-                "Detektionszeitpunkt": ["Spät (Funktionsverlust)", "Mittel", "Früh (Aktive Entzündung)"],
-                "Cut-Off": ["Trend > 20% Anstieg", "> 0.5 - 1.0 g/g", "> 0.5% - 1.0% (Assay-abhängig)"]
-            })
-        else:
-            comp_markers = pd.DataFrame({
-                "Marker": ["Serum Creatinine", "Proteinuria", "dd-cfDNA (Blood)"],
-                "Measures": ["Filtration Power (GFR)", "Glomerular Integrity", "Cell Death (Necrosis/Apoptosis)"],
-                "Detection Time": ["Late (Function Loss)", "Medium", "Early (Active Inflammation)"],
-                "Cut-Off": ["Trend > 20% rise", "> 0.5 - 1.0 g/g", "> 0.5% - 1.0% (Assay dependent)"]
-            })
-        st.table(comp_markers)
+        # --- NEW: PERSISTENT GRAPHIC GENERATION ---
+        st.write(t("#### Kinetik: dd-cfDNA (Rot) vs. Kreatinin (Blau)", "#### Kinetics: dd-cfDNA (Red) vs. Creatinine (Blue)"))
+        fig_biomarker = render_biomarker_chart(current_lang)
+        st.pyplot(fig_biomarker)
+        st.caption(t("Diese Grafik wird live generiert. Rot = Molekulare Schädigung (Früh). Blau = Funktionsverlust (Spät).", 
+                     "This chart is generated live. Red = Molecular Injury (Early). Blue = Functional Loss (Late)."))
+        # ------------------------------------------
+
+        st.markdown("---")
         get_evidence_badge("dd_cfdna_kinetics")
 
     with f_tab2:
-        st.subheader(t("Immunsuppression (Standard)", "Immunosuppression (Standard)"))
-        st.code("Tacrolimus (Target 8-10 ng/ml) + MMF (2g/d) + Steroide (Tapering)")
-        st.write(t(
-            "Biopsie-Indikation bleibt Goldstandard bei unklarem Befund.",
-            "Biopsy remains gold standard for unclear findings."
-        ))
+        st.code("Tacrolimus + MMF + Steroide")
 
 # === 6. SEARCH ===
 elif nav_selection == nav_options["Search"]:
-    st.title(t("Live Suche", "Live Search"))
-    q = st.text_input(t("Suchbegriff", "Search Query"), "kidney transplantation guidelines 2026")
-    if st.button(t("Suchen", "Search")):
+    st.title("Live Search")
+    q = st.text_input("Query", "kidney transplantation guidelines 2026")
+    if st.button("Search"):
         res = fetch_pubmed_data(q)
         for r in res:
-            st.write(f"**{r['Titel']}** ({r['Date']})")
-            st.caption(r['Abstract'])
-            st.markdown("---")
+            st.write(f"**{r['Titel']}**")
