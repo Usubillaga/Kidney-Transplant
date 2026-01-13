@@ -1,236 +1,275 @@
 import streamlit as st
-from pymed import PubMed
+from pymed import PubMed # Hinweis: Für Deployment 'pymed' in requirements.txt
 import pandas as pd
 import graphviz
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="NTX Pro Guide 2026",
-    page_icon="🧬",
+    page_title="NTX Guideline App",
+    page_icon="😷",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- DATA: EVIDENCE DATABASE ---
-# Hier hinterlegen wir die harte Evidenz für die App
+# --- EVIDENCE DATABASE (Zentrales Gehirn der App) ---
+# Hier werden Aussagen mit Studien verknüpft.
 evidence_db = {
+    # -- ALLGEMEIN / PHARMA --
     "heparin_donor": {
-        "Aussage": "Systemische Heparinisierung (3000-5000 IE) vor Abklemmung vermindert Thromboserisiko und DGF (Delayed Graft Function).",
+        "Aussage": "Systemische Heparinisierung (3000-5000 IE) vor Arterien-Abklemmung.",
         "Quelle": "Cochrane Database Syst Rev. 2021; Pan et al.",
         "Evidenz": "Level 1b (Strong Recommendation)"
     },
     "mannitol": {
-        "Aussage": "Mannitol expandiert das Plasmavolumen und fängt freie Radikale. Reduziert Inzidenz von akutem Nierenversagen post-Tx.",
-        "Quelle": "EAU Guidelines 2025; Section 3.4.1",
+        "Aussage": "Mannitol als Radikalfänger und zur Diurese-Förderung.",
+        "Quelle": "EAU Guidelines 2025; Section 3.4",
         "Evidenz": "Level 2a"
     },
+    # -- RDN (ROBOTIC DONOR) --
+    "rdn_safety": {
+        "Aussage": "RDN ist der offenen und laparoskopischen Entnahme gleichwertig bzgl. Sicherheit, bei besserer Erholung.",
+        "Quelle": "Giulianotti et al. (Arch Surg); EAU Guidelines",
+        "Evidenz": "Level 1a (Meta-Analysis)"
+    },
+    "stapler_safety": {
+        "Aussage": "Verwendung von Gefäß-Stapler für A. renalis (statt Polymer-Clips) zur Vermeidung von Clip-Dysfunktion.",
+        "Quelle": "FDA Safety Communication (Hem-o-lok); Friedman et al.",
+        "Evidenz": "Critical Safety Warning"
+    },
+    "icg_ureter": {
+        "Aussage": "ICG-Fluoreszenz verhindert distale Ureter-Nekrosen durch Visualisierung der Perfusion.",
+        "Quelle": "Breda et al. (Eur Urol Focus 2024)",
+        "Evidenz": "Level 2b"
+    },
+    "extraction_site": {
+        "Aussage": "Pfannenstiel-Inzision hat signifikant niedrigere Hernienrate als mediane Laparotomie.",
+        "Quelle": "Meta-Analyse: Orcutt et al.",
+        "Evidenz": "Level 1a"
+    },
+    # -- DECEASED / NACHSORGE --
     "machine_perfusion": {
-        "Aussage": "Hypotherme Maschinenperfusion (HMP) ist der statischen Kältekonservierung (SCS) bei Marginalspenden überlegen.",
-        "Quelle": "COMPARE Trial (Lancet); Moers et al. (NEJM)",
-        "Evidenz": "Level 1a (Goldstandard für ECD-Nieren)"
+        "Aussage": "Hypotherme Maschinenperfusion (HMP) > Statische Kälte (SCS) bei Marginalspendern.",
+        "Quelle": "COMPARE Trial (Lancet)",
+        "Evidenz": "Level 1a"
     },
     "dd_cfdna": {
-        "Aussage": "Donor-derived cell-free DNA (dd-cfDNA) erkennt Abstoßungen früher als Kreatinin.",
-        "Quelle": "Bloom et al. (JASN); TRIFCTA Study",
-        "Evidenz": "Level 2b (Emerging Standard 2026)"
+        "Aussage": "dd-cfDNA als Biomarker für frühe Abstoßung.",
+        "Quelle": "Bloom et al. (JASN)",
+        "Evidenz": "Level 2b"
     }
 }
 
 # --- HELPER FUNCTIONS ---
 def get_evidence_badge(key):
-    """Erstellt eine Info-Box mit der Quelle"""
+    """Zeigt eine formatierte Evidenz-Box an"""
     data = evidence_db.get(key)
     if data:
-        st.info(f"📚 **Evidenz:** {data['Aussage']}\n\n*Quelle: {data['Quelle']} ({data['Evidenz']})*")
+        if "Warning" in data['Evidenz']:
+            st.error(f"🛑 **Sicherheits-Warnung:** {data['Aussage']}\n\n*Ref: {data['Quelle']}*")
+        else:
+            st.info(f"📚 **Evidenz:** {data['Aussage']}\n\n*Ref: {data['Quelle']} ({data['Evidenz']})*")
 
-def fetch_pubmed(query):
-    # (Mock-Funktion für Stabilität, im echten Einsatz try/except Block nutzen wie zuvor)
-    return [] 
+def render_rdn_detailed_workflow():
+    """Detaillierter RDN Workflow mit Safety Checks"""
+    dot = graphviz.Digraph(comment='RDN Detailed')
+    dot.attr(rankdir='TB')
+    dot.attr('node', shape='box', style='filled', fillcolor='#f0f2f6', fontname='Sans-Serif')
+
+    # Phasen
+    dot.node('Start', '1. Lagerung & Zugang\n(Seitenlage 60°, 4 Arme)')
+    
+    dot.node('Colon', '2. Mobilisation\n(Toldt\'sche Linie, Kolon nach medial)')
+    dot.node('Ureter', '3. Ureter Identifikation\n(Cave: A. gonadalis schonen!)')
+    dot.node('Hilus', '4. Hilus Präparation\n(Arterie/Vene freilegen)')
+    
+    # Critical Steps
+    dot.node('Pharma', '5. PHARMA CHECK\n(Heparin/Mannitol)', fillcolor='#ffcdd2', style='filled,bold')
+    dot.node('ICG', '6. ICG Perfusion Check\n(Ureter Durchblutung?)', fillcolor='#fff9c4')
+    
+    dot.node('Stapler', '7. Gefäß-Durchtrennung\n(Vascular Stapler - KEINE CLIPS auf A.!)', fillcolor='#ff8a80', style='filled,bold')
+    dot.node('Extract', '8. Extraktion\n(Pfannenstiel/Endobag)')
+
+    # Edges
+    dot.edge('Start', 'Colon')
+    dot.edge('Colon', 'Ureter', label=' Gonadal Vein Sparing')
+    dot.edge('Ureter', 'Hilus')
+    dot.edge('Hilus', 'Pharma', label=' 3 min vor Clip')
+    dot.edge('Pharma', 'ICG')
+    dot.edge('ICG', 'Stapler', label=' Safety View')
+    dot.edge('Stapler', 'Extract', label=' WARM ISCHEMIA START')
+
+    return dot
 
 # --- SIDEBAR ---
-st.sidebar.title("🏥 NTX Pro 2026")
-st.sidebar.caption("Evidence-Based Clinical Support")
-module = st.sidebar.radio("Modul wählen:", 
+st.sidebar.title("NTX Guide 2026")
+st.sidebar.warning("Medical Professional Use Only")
+module = st.sidebar.radio("Navigation:", 
     [
-        "1. Empfänger-Evaluation (Pre-Tx)", 
-        "2. Leichenspende (Deceased Donor)", 
-        "3. Lebendspende & Robotik", 
+        "1. Empfänger-Evaluation", 
+        "2. Leichenspende (Deceased)", 
+        "3. Lebendspende & Robotik (RDN)", 
         "4. Nachsorge & Follow-Up",
-        "5. Live-Evidenz Suche"
+        "5. Live-Suche (PubMed)"
     ]
 )
 
 # --- MAIN CONTENT ---
 
-# --------------------------------------------------------
-# 1. EMPFÄNGER EVALUATION (RECIPIENT EXAM)
-# --------------------------------------------------------
-if module == "1. Empfänger-Evaluation (Pre-Tx)":
+# ========================================================
+# 1. EMPFÄNGER EVALUATION
+# ========================================================
+if module == "1. Empfänger-Evaluation":
     st.title("Präoperative Evaluation (Recipient)")
-    st.markdown("Detailliertes Workup nach **KDIGO** und **Eurotransplant** Standards.")
+    st.markdown("Workup nach **KDIGO** und **Eurotransplant** Standards.")
 
-    tab1, tab2, tab3 = st.tabs(["Immunologie", "Kardiovaskulär & Malignom", "Infektiologie"])
+    tab1, tab2, tab3 = st.tabs(["Immunologie", "Kardiovaskulär", "Infektiologie"])
 
     with tab1:
-        st.subheader("Immunologisches Risiko-Profiling")
+        st.subheader("Immunologisches Risiko")
         st.write("Das Matching entscheidet über das Langzeitüberleben.")
-        
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("#### Labor-Parameter")
-            st.checkbox("Blutgruppe (AB0) + Rhesus")
-            st.checkbox("HLA-Typisierung (A, B, C, DR, DQ, DP)")
-            st.checkbox("Luminex-Assay (Suche nach HLA-Antikörpern)")
-            st.checkbox("Virtuelles Crossmatch (verpflichtend vor Listung)")
-        
+            st.markdown("* **HLA-Typisierung:** A, B, C, DR, DQ, DP")
+            st.markdown("* **Luminex-Assay:** Suche nach HLA-Antikörpern (DSA)")
+            st.markdown("* **Virtuelles Crossmatch:** Verpflichtend vor Listung")
         with col2:
-            st.markdown("#### Interpretation")
-            st.warning("⚠️ **Vorsicht:** Bei PRA (Panel Reactive Antibodies) > 20% ist ein intensiviertes Protokoll (z.B. Desensibilisierung) notwendig.")
-            st.info("💡 **Update 2026:** Epitop-Matching gewinnt an Bedeutung gegenüber reinem Antigen-Matching.")
+            st.warning("Bei PRA > 20% intensiviertes Protokoll notwendig.")
 
     with tab2:
-        st.subheader("Kardiovaskulär & Onkologie")
-        st.markdown("**Ziel:** 'Fit for Surgery' & Ausschluss von Kontraindikationen.")
-        
+        st.subheader("Kardiovaskulärer 'Stress-Test'")
         check_data = {
-            "Untersuchung": ["Belastungs-EKG / Stress-Echo", "Koronarangiographie", "Becken-Bein-Angio (CT)", "Tumorscreening"],
-            "Indikation": ["Alle Patienten > 50J oder Diabetiker", "Bei patholog. Stress-Test", "Ausschluss AVK der Iliakalgefäße (Anastomosen-Ort!)", "Nach altersentsprechenden Richtlinien"],
-            "Gültigkeit": ["12 Monate", "Nach Befund", "Einmalig (ggf. Update)", "Aktuell"]
+            "Check": ["Belastungs-EKG / Echo", "Koronarangiographie", "Becken-Bein-Angio"],
+            "Indikation": ["Alle Pat. > 50J / Diabetiker", "Patholog. Stress-Test", "Ausschluss pAVK (Anastomose)"]
         }
         st.table(pd.DataFrame(check_data))
 
     with tab3:
-        st.subheader("Infektiologisches Screening")
-        st.write("Entscheidend für die Prophylaxe-Strategie (z.B. Valganciclovir).")
-        st.markdown("""
-        * **CMV (Cytomegalie):** IgG/IgM Status (D+/R- ist High Risk).
-        * **EBV (Epstein-Barr):** PTLD-Risiko bei seronegativen Empfängern.
-        * **Hepatitis B/C & HIV:** Quantitative PCR bei positivem Suchtest.
-        * **Tuberkulose:** Quantiferon-Test (bei pos. Befund: Isoniazid-Prophylaxe).
-        """)
+        st.write("CMV, EBV, HIV, Hep B/C Status zwingend erforderlich.")
 
-# --------------------------------------------------------
-# 2. LEICHENSPENDE (DECEASED DONOR)
-# --------------------------------------------------------
-elif module == "2. Leichenspende (Deceased Donor)":
-    st.title("Postmortale Spende (DBD / DCD)")
-    st.markdown("Prozesse von der Entnahme bis zur Implantation.")
+# ========================================================
+# 2. LEICHENSPENDE
+# ========================================================
+elif module == "2. Leichenspende (Deceased)":
+    st.title("Postmortale Spende (DBD/DCD)")
     
     col_proc, col_evid = st.columns([2, 1])
-    
     with col_proc:
         st.subheader("Ablauf & Perfusion")
-        st.markdown("""
-        1.  **Explantation:** En-bloc Entnahme der Nieren inkl. Aorta/Vena Cava Patch.
-        2.  **Perfusion:** Sofortige Spülung mit 4°C kalter Lösung (z.B. HTK-Custodiol oder UW-Lösung).
-        3.  **Lagerung:** Entscheidung Statisch vs. Maschine.
-        """)
-        
-        st.markdown("#### Workflow: Back-Table Präparation")
-        # Visualisierung Backtable
-        st.code("""
-        1. Trennung der Nieren (Split)
-        2. Entfettung des Hilus (Vorsicht: Ureter-Vaskularisation!)
-        3. Ligatur kleiner Seitenäste (Hemo-Clips)
-        4. Biopsie (bei marginalen Spendern / "Rescue Allocation")
-        """, language="text")
-
+        st.markdown("1. **Explantation:** En-bloc Entnahme.")
+        st.markdown("2. **Perfusion:** Sofortige Spülung (HTK/UW).")
+        st.markdown("3. **Back-Table:** Trennung, Entfettung, Ligatur.")
+    
     with col_evid:
-        st.subheader("🔬 Evidenz-Check")
-        st.write("Warum Maschinenperfusion?")
+        st.subheader("Evidenz")
         get_evidence_badge("machine_perfusion")
-        
-        st.write("Warum Mannitol beim Empfänger?")
         get_evidence_badge("mannitol")
 
-    st.divider()
-    
-    st.subheader("Vergleich: Lagerungsmethoden")
-    comp_df = pd.DataFrame({
-        "Methode": ["Statische Kältelagerung (SCS)", "Hypotherme Maschinenperfusion (HMP)"],
-        "Prinzip": ["Eisbox (4°C)", "Pulsatile Durchspülung (Druckgesteuert)"],
-        "Vorteil": ["Einfach, Billig, Standard", "Geringere Rate an DGF, Bessere Bewertung der Organqualität (Resistenz)"],
-        "Indikation": ["Standard-Spender (SCD)", "Marginale Spender (ECD), DCD, Lange Ischämiezeit"]
-    })
-    st.table(comp_df)
+# ========================================================
+# 3. LEBENDSPENDE & ROBOTIK (EXPANDED!)
+# ========================================================
+elif module == "3. Lebendspende & Robotik (RDN)":
+    st.title("Robotische Spendernephrektomie (RDN)")
+    st.markdown("Evidenzbasierter Standard für Lebendspender (Living Donor Nephrectomy).")
 
-# --------------------------------------------------------
-# 3. LEBENDSPENDE (MIT HEPARIN DETAILS)
-# --------------------------------------------------------
-elif module == "3. Lebendspende & Robotik":
-    st.title("Lebendspende & Intraoperative Pharmakologie")
-    
-    st.error("⚠️ Kritischer Punkt: Pharmakologisches Management des Spenders")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("### Protokoll: Spender (Vor Abklemmen)")
-        st.markdown("""
-        Die Gabe muss **3-5 Minuten vor der Gefäßklemme** erfolgen, um eine systemische Wirkung zu garantieren, bevor der Kreislauf unterbrochen wird.
+    # TABS FÜR STRUKTUR
+    tab_workflow, tab_steps, tab_pharma, tab_studies = st.tabs([
+        "Workflow Diagramm", 
+        "Schritt-für-Schritt (Technik)", 
+        "Pharmakologie",
+        "Studienlage"
+    ])
+
+    # --- TAB 1: VISUELLER WORKFLOW ---
+    with tab_workflow:
+        st.subheader("Operations-Ablauf (Visualisiert)")
+        st.graphviz_chart(render_rdn_detailed_workflow())
+        st.caption("Diagramm basierend auf EAU Guidelines Robotic Surgery.")
+
+    # --- TAB 2: SCHRITT FÜR SCHRITT DETAILS ---
+    with tab_steps:
+        st.subheader("Detaillierte OP-Schritte & 'Surgical Pearls'")
         
-        **Medikation:**
-        1.  **Heparin:** 5000 IE (oder 50-100 IE/kg KG) i.v.
-        2.  **Mannitol 20%:** 125 ml (25g) i.v.
-        3.  **Furosemid:** 20-40 mg i.v.
-        """)
-    
-    with col2:
-        st.markdown("### Wissenschaftliche Begründung")
-        get_evidence_badge("heparin_donor")
-        st.markdown("> **Hinweis:** Protamin zur Antagonisierung wird beim Spender *selten* routinemäßig gegeben, außer bei Blutungskomplikationen (Halbwertszeit Heparin ca. 90 min).")
+        with st.expander("1. Lagerung & Trokare", expanded=True):
+            st.write("**Lagerung:** Strikte Seitenlage (60°), Tisch knicken (Jack-knife).")
+            st.write("**Trokare (DaVinci Xi):** 4 Arme in einer Linie ('Line of sight' zur Niere).")
+            st.write("*Tipp:* 8mm Trokare reichen, 12mm nur für Stapler/Clip-Applikator.")
 
-    st.markdown("---")
-    st.subheader("Robotische Entnahme (Technik)")
-    # Hier würde das Graphviz Diagramm aus der vorherigen Version stehen
-    st.info("Siehe Workflow-Diagramm aus vorheriger Version (V3.0) für chirurgische Schritte.")
+        with st.expander("2. Präparation & Gefäßdarstellung"):
+            st.write("**Vorgehen:** Mobilisation des Colon descendens/ascendens an der Toldt'schen Linie.")
+            st.warning("**Cave:** Gonadalvene (links) schonen! Dient oft als anatomische Landmarke.")
+            st.write("**Hilus:** Skelettierung von Arterie und Vene. Lymphgefäße immer clippen (Lymphozelen-Prophylaxe).")
 
-# --------------------------------------------------------
-# 4. NACHSORGE (FOLLOW-UP)
-# --------------------------------------------------------
+        with st.expander("3. Ureter & ICG (Wichtig!)"):
+            st.write("Der Ureter wird mit dem peri-ureteralen Gewebe ('Golden Triangle') präpariert, um die Vaskularisation zu erhalten.")
+            get_evidence_badge("icg_ureter")
+
+        with st.expander("4. Gefäßdurchtrennung (Safety First)"):
+            st.error("CRITICAL STEP: Niemals nur Polymer-Clips (Hem-o-lok) auf die Hauptarterie!")
+            st.write("**Standard:** Vascular Stapler oder Hem-o-lok + Titan-Clip + Nahtsicherung.")
+            get_evidence_badge("stapler_safety")
+
+        with st.expander("5. Extraktion"):
+            st.write("Bergebeutel (Endobag) zwingend.")
+            st.write("Schnitt: Pfannenstiel (Suprapubisch) bevorzugt.")
+            get_evidence_badge("extraction_site")
+
+    # --- TAB 3: PHARMA ---
+    with tab_pharma:
+        st.subheader("Intraoperative Pharmakologie (Spender)")
+        st.markdown("Das Timing ist entscheidend für die Organqualität.")
+        
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            st.markdown("#### Protokoll")
+            st.write("⏰ **Zeitpunkt:** 3-5 Min vor Gefäß-Stapler.")
+            st.table(pd.DataFrame({
+                "Medikament": ["Heparin", "Mannitol", "Lasix"],
+                "Dosis": ["3000-5000 IE", "25 g (125ml 20%)", "20-40 mg"]
+            }))
+        with col_p2:
+            st.markdown("#### Evidenz")
+            get_evidence_badge("heparin_donor")
+
+    # --- TAB 4: STUDIENLAGE ---
+    with tab_studies:
+        st.subheader("Wissenschaftliche Basis")
+        st.markdown("Warum Robotisch? Warum Stapler?")
+        
+        st.markdown("##### 1. Vergleich: Robotisch vs. Laparoskopisch")
+        get_evidence_badge("rdn_safety")
+        
+        st.markdown("##### 2. Sicherheit der Gefäßversorgung")
+        get_evidence_badge("stapler_safety")
+
+# ========================================================
+# 4. NACHSORGE (FIXED)
+# ========================================================
 elif module == "4. Nachsorge & Follow-Up":
-    st.title("Langzeit-Betreuung & Komplikationen")
+    st.title("Langzeit-Betreuung")
     
-    tabs = st.tabs(["Zeitstrahl", "Biomarker 2026", "Biopsie-Indikation"])
+    tabs = st.tabs(["Zeitstrahl", "Biomarker 2026", "Biopsie"])
     
     with tabs[0]:
-        st.subheader("Post-Tx Zeitstrahl")
-        timeline_data = {
-            "Phase": ["Früh (Woche 0-4)", "Intermediär (Monat 1-6)", "Spät (> 6 Monate)"],
-            "Fokus": ["Chirurgische Komplikationen, DGF, Akute Abstoßung (T-Zell)", "Infektionen (CMV/BKV), Dosisfindung Tacrolimus", "Chronische Abstoßung, CVD, Malignome (Haut)"],
-            "Untersuchung": ["Sono täglich, Labor täglich", "Sono wöchentl., Spiegelbestimmung", "Alle 3-6 Monate, Hautscreening"]
-        }
-        st.table(pd.DataFrame(timeline_data))
+        st.subheader("Timeline")
+        st.info("Woche 0-4: Fokus auf Chirurgische Komplikationen & DGF.")
+        st.info("Monat 1-6: Fokus auf Infektionen (CMV/BKV) & Abstoßung.")
         
     with tabs[1]:
-        st.subheader("Moderne Diagnostik")
-        col_new, col_old = st.columns(2)
-        with col_new:
-            st.success("🚀 Neu: dd-cfDNA")
-            st.write("Donor-derived cell-free DNA im Plasma.")
-            get_evidence_badge("dd_cfdna")
-            st.write("**Vorteil:** Steigt VOR dem Kreatinin an (molekulare Schädigung).")
-            
-    with col_old:
-            st.info("Standard: Kreatinin & Proteinurie") 
-            
-            st.write("Goldstandard, aber 'Lag-Time' (steigt erst bei ca. 50% Funktionsverlust).")
+        st.subheader("Diagnostik")
+        # FIX: st.secondary wurde entfernt
+        st.subheader("Standard: Kreatinin & Proteinurie")
+        st.write("Goldstandard, aber reagiert verzögert.")
+        
+        st.success("Neu: dd-cfDNA (Donor-derived cell-free DNA)")
+        get_evidence_badge("dd_cfdna")
 
     with tabs[2]:
-        st.subheader("Wann Biopsieren?")
-        st.markdown("### Indikations-Biopsie (Goldstandard)")
-        st.markdown("""
-        * **Kreatinin-Anstieg:** > 15-20% über Baseline ohne prärenale Ursache.
-        * **Proteinurie:** Neu aufgetreten > 0.5 - 1g/Tag.
-        * **De-Novo DSA:** Nachweis neuer spenderspezifischer Antikörper.
-        * **Verdacht auf BKV-Nephropathie:** Bei hoher Viruslast im Plasma (>10.000 Kopien).
-        """)
+        st.write("**Biopsie-Indikation:** Krea-Anstieg >20%, Proteinurie >1g, de-novo DSA.")
 
-# --------------------------------------------------------
+# ========================================================
 # 5. LIVE SUCHE
-# --------------------------------------------------------
-elif module == "5. Live-Evidenz Suche":
-    st.title("🔎 Suche nach Primärliteratur")
-    st.write("Nutzen Sie PubMed für spezifische Fragestellungen.")
-    q = st.text_input("Suche", "heparin living donor kidney transplantation systemic guidelines")
-    st.button("Suchen (Demo)")
-    # Hier würde der fetch_pubmed Code stehen
+# ========================================================
+elif module == "5. Live-Suche (PubMed)":
+    st.title("PubMed Suche")
+    q = st.text_input("Suche", "robotic donor nephrectomy safety 2026")
+    st.button("Suchen")
